@@ -41,21 +41,21 @@ def criar_dados_iniciais():
         # Criar serviços
         servicos_data = [
             {
-                'nome': 'Corte de Cabelo',
-                'descricao': 'Corte de cabelo tradicional ou moderno',
-                'preco': 35.00,
+                'nome': 'Corte Social/Degradê',
+                'descricao': 'Corte moderno e estiloso com degradê suave',
+                'preco': 30.00,
                 'duracao': 30
             },
             {
                 'nome': 'Barba',
                 'descricao': 'Fazer a barba com toalha quente',
-                'preco': 35.00,
+                'preco': 20.00,
                 'duracao': 20
             },
             {
                 'nome': 'Corte + Barba',
                 'descricao': 'Corte de cabelo e barba',
-                'preco': 70.00,
+                'preco': 45.00,
                 'duracao': 45
             }
         ]

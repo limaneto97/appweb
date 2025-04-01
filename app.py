@@ -135,6 +135,11 @@ class AgendamentoForm(FlaskForm):
     data_hora = DateTimeField('Data e Hora', format='%Y-%m-%dT%H:%M', validators=[DataRequired()])
     submit = SubmitField('Confirmar Agendamento')
 
+class AdminLoginForm(FlaskForm):
+    email = EmailField('Email', validators=[DataRequired(), Email()])
+    senha = PasswordField('Senha', validators=[DataRequired()])
+    submit = SubmitField('Entrar como Administrador')
+
 # Funções auxiliares
 def verificar_disponibilidade(barbeiro_id, data_hora, duracao_total):
     """Verifica se um barbeiro está disponível em um determinado horário considerando a duração total dos serviços"""
@@ -287,6 +292,10 @@ def load_user(user_id):
 def inject_now():
     return {'now': datetime.now()}
 
+@app.context_processor
+def inject_admin_check():
+    return {'is_admin': is_admin}
+
 # Fornece o token CSRF para os templates
 @app.context_processor
 def inject_csrf_token():
@@ -310,8 +319,8 @@ def index():
     
     # Seleciona serviços em destaque para a página inicial
     servicos_destaque = {
-        'corte': next((s for s in servicos if 'corte' in s.nome.lower()), None),
-        'barba': next((s for s in servicos if 'barba' in s.nome.lower()), None),
+        'corte_social': next((s for s in servicos if 'social' in s.nome.lower() or 'degrad' in s.nome.lower()), None),
+        'barba': next((s for s in servicos if 'barba' in s.nome.lower() and not 'corte' in s.nome.lower()), None),
         'hidratacao': next((s for s in servicos if 'hidrata' in s.nome.lower()), None),
         'combo': next((s for s in servicos if 'combo' in s.nome.lower() or ('corte' in s.nome.lower() and 'barba' in s.nome.lower())), None)
     }
@@ -782,7 +791,8 @@ def api_servicos_info():
 # Função para verificar se o usuário é administrador
 def is_admin(user):
     """Verifica se o usuário é o administrador do sistema"""
-    return user.is_barbeiro and user.email == 'barbeariasouzaretro@gmail.com'
+    # Usando emails específicos como método temporário de identificação de admin
+    return user.email in ['admin@barbearia.com', 'barbeariasouzaretro@gmail.com']
 
 # Handlers de erro
 @app.errorhandler(404)
@@ -799,14 +809,432 @@ def internal_server_error(e):
     db.session.rollback()
     return render_template('500.html'), 500
 
+# Rota para login de administrador
+@app.route('/admin/login', methods=['GET', 'POST'])
+def admin_login():
+    # Se o usuário já estiver logado e for admin, redireciona para o painel admin
+    if current_user.is_authenticated and is_admin(current_user):
+        return redirect(url_for('admin_dashboard'))
+    
+    form = AdminLoginForm()
+    if form.validate_on_submit():
+        usuario = Usuario.query.filter_by(email=form.email.data).first()
+        
+        # Verifica se o usuário existe, se a senha está correta e se é um administrador
+        if usuario and usuario.verificar_senha(form.senha.data) and is_admin(usuario):
+            login_user(usuario)
+            flash('Login realizado com sucesso! Bem-vindo ao painel administrativo.', 'success')
+            return redirect(url_for('admin_dashboard'))
+        else:
+            flash('Credenciais inválidas ou você não é um administrador', 'danger')
+    
+    return render_template('admin_login.html', form=form)
+
+# Rota do painel admin
+@app.route('/admin/dashboard')
+@login_required
+def admin_dashboard():
+    # Verifica se o usuário é admin
+    if not is_admin(current_user):
+        flash('Acesso restrito. Você não é um administrador.', 'danger')
+        return redirect(url_for('index'))
+    
+    # Estatísticas para o painel
+    total_barbeiros = Usuario.query.filter_by(is_barbeiro=True).count()
+    total_clientes = Usuario.query.filter_by(is_barbeiro=False).count()
+    total_agendamentos_hoje = Agendamento.query.filter(
+        func.date(Agendamento.data_hora) == datetime.now().date()
+    ).count()
+    total_agendamentos_pendentes = Agendamento.query.filter_by(status='pendente').count()
+    total_servicos = Servico.query.count()
+    
+    # Lista de barbeiros para gerenciamento
+    barbeiros = Usuario.query.filter_by(is_barbeiro=True).all()
+    
+    # Lista de serviços para gerenciamento
+    servicos = Servico.query.all()
+    
+    return render_template(
+        'admin_dashboard.html',
+        total_barbeiros=total_barbeiros,
+        total_clientes=total_clientes,
+        total_agendamentos_hoje=total_agendamentos_hoje,
+        total_agendamentos_pendentes=total_agendamentos_pendentes,
+        total_servicos=total_servicos,
+        barbeiros=barbeiros,
+        servicos=servicos
+    )
+
+# Rota para criar um administrador (acesso protegido)
+@app.route('/admin/criar', methods=['GET', 'POST'])
+def criar_admin():
+    # Verificar se já existe algum administrador
+    admin_existente = Usuario.query.filter(
+        (Usuario.email == 'admin@barbearia.com') | 
+        (Usuario.email == 'barbeariasouzaretro@gmail.com')
+    ).first()
+    
+    # Se já existir administrador e o usuário atual não for admin, bloquear acesso
+    if admin_existente and not (current_user.is_authenticated and is_admin(current_user)):
+        flash('Operação não permitida', 'danger')
+        return redirect(url_for('index'))
+    
+    # Formulário simplificado para criar admin
+    form = RegistroForm()
+    
+    if form.validate_on_submit():
+        novo_admin = Usuario(
+            nome=form.nome.data,
+            email=form.email.data,
+            telefone=form.telefone.data,
+            is_barbeiro=form.is_barbeiro.data
+        )
+        novo_admin.senha = form.senha.data
+        
+        try:
+            db.session.add(novo_admin)
+            db.session.commit()
+            flash(f'Administrador {novo_admin.nome} criado com sucesso!', 'success')
+            
+            # Se não estiver logado como admin, fazer login como o novo admin
+            if not (current_user.is_authenticated and is_admin(current_user)):
+                login_user(novo_admin)
+            
+            return redirect(url_for('admin_dashboard'))
+        except Exception as e:
+            db.session.rollback()
+            flash(f'Erro ao criar administrador: {str(e)}', 'danger')
+    
+    return render_template('admin_criar.html', form=form)
+
+# Rota para gerenciar barbeiros
+@app.route('/admin/barbeiros')
+@login_required
+def admin_barbeiros():
+    if not is_admin(current_user):
+        flash('Acesso restrito. Você não é um administrador.', 'danger')
+        return redirect(url_for('index'))
+    
+    barbeiros = Usuario.query.filter_by(is_barbeiro=True).all()
+    servicos = Servico.query.all()
+    return render_template('admin_barbeiros.html', barbeiros=barbeiros, servicos=servicos)
+
+# Rota para adicionar barbeiro
+@app.route('/admin/barbeiros/adicionar', methods=['POST'])
+@login_required
+def admin_barbeiros_adicionar():
+    if not is_admin(current_user):
+        flash('Acesso restrito. Você não é um administrador.', 'danger')
+        return redirect(url_for('index'))
+    
+    try:
+        nome = request.form.get('nome')
+        email = request.form.get('email')
+        telefone = request.form.get('telefone')
+        senha = request.form.get('senha')
+        
+        # Verifica se o email já existe
+        if Usuario.query.filter_by(email=email).first():
+            flash('Email já cadastrado', 'danger')
+            return redirect(url_for('admin_barbeiros'))
+        
+        # Cria o novo barbeiro
+        novo_barbeiro = Usuario(
+            nome=nome,
+            email=email,
+            telefone=telefone,
+            is_barbeiro=True
+        )
+        novo_barbeiro.senha = senha
+        
+        db.session.add(novo_barbeiro)
+        db.session.commit()
+        
+        # Adiciona serviços selecionados
+        servicos_ids = request.form.getlist('servicos[]')
+        if servicos_ids:
+            servicos = Servico.query.filter(Servico.id.in_(servicos_ids)).all()
+            novo_barbeiro.servicos = servicos
+            db.session.commit()
+        
+        flash('Barbeiro adicionado com sucesso!', 'success')
+    except Exception as e:
+        db.session.rollback()
+        flash(f'Erro ao adicionar barbeiro: {str(e)}', 'danger')
+    
+    return redirect(url_for('admin_barbeiros'))
+
+# Rota para editar barbeiro
+@app.route('/admin/barbeiros/editar/<int:id>', methods=['POST'])
+@login_required
+def admin_barbeiros_editar(id):
+    if not is_admin(current_user):
+        flash('Acesso restrito. Você não é um administrador.', 'danger')
+        return redirect(url_for('index'))
+    
+    try:
+        barbeiro = db.session.get(Usuario, id)
+        if not barbeiro:
+            flash('Barbeiro não encontrado', 'danger')
+            return redirect(url_for('admin_barbeiros'))
+        
+        # Atualiza os dados do barbeiro
+        barbeiro.nome = request.form.get('nome')
+        barbeiro.email = request.form.get('email')
+        barbeiro.telefone = request.form.get('telefone')
+        
+        # Atualiza a senha se fornecida
+        senha = request.form.get('senha')
+        if senha:
+            barbeiro.senha = senha
+        
+        db.session.commit()
+        flash('Barbeiro atualizado com sucesso!', 'success')
+    except Exception as e:
+        db.session.rollback()
+        flash(f'Erro ao atualizar barbeiro: {str(e)}', 'danger')
+    
+    return redirect(url_for('admin_barbeiros'))
+
+# Rota para excluir barbeiro
+@app.route('/admin/barbeiros/excluir/<int:id>', methods=['POST'])
+@login_required
+def admin_barbeiros_excluir(id):
+    if not is_admin(current_user):
+        flash('Acesso restrito. Você não é um administrador.', 'danger')
+        return redirect(url_for('index'))
+    
+    try:
+        barbeiro = db.session.get(Usuario, id)
+        if not barbeiro:
+            flash('Barbeiro não encontrado', 'danger')
+            return redirect(url_for('admin_barbeiros'))
+        
+        # Verifica se há agendamentos associados
+        agendamentos = Agendamento.query.filter_by(barbeiro_id=id).all()
+        if agendamentos:
+            # Opcionalmente, pode excluir os agendamentos ou transferi-los
+            for agendamento in agendamentos:
+                db.session.delete(agendamento)
+        
+        db.session.delete(barbeiro)
+        db.session.commit()
+        flash('Barbeiro excluído com sucesso!', 'success')
+    except Exception as e:
+        db.session.rollback()
+        flash(f'Erro ao excluir barbeiro: {str(e)}', 'danger')
+    
+    return redirect(url_for('admin_barbeiros'))
+
+# Rota para gerenciar serviços de um barbeiro
+@app.route('/admin/barbeiros/servicos/<int:id>', methods=['POST'])
+@login_required
+def admin_barbeiros_servicos(id):
+    if not is_admin(current_user):
+        flash('Acesso restrito. Você não é um administrador.', 'danger')
+        return redirect(url_for('index'))
+    
+    try:
+        barbeiro = db.session.get(Usuario, id)
+        if not barbeiro:
+            flash('Barbeiro não encontrado', 'danger')
+            return redirect(url_for('admin_barbeiros'))
+        
+        # Atualiza os serviços do barbeiro
+        servicos_ids = request.form.getlist('servicos[]')
+        servicos = Servico.query.filter(Servico.id.in_(servicos_ids)).all() if servicos_ids else []
+        
+        barbeiro.servicos = servicos
+        db.session.commit()
+        flash('Serviços do barbeiro atualizados com sucesso!', 'success')
+    except Exception as e:
+        db.session.rollback()
+        flash(f'Erro ao atualizar serviços do barbeiro: {str(e)}', 'danger')
+    
+    return redirect(url_for('admin_barbeiros'))
+
+# Rota para adicionar serviço
+@app.route('/admin/servicos/adicionar', methods=['POST'])
+@login_required
+def admin_servicos_adicionar():
+    if not is_admin(current_user):
+        flash('Acesso restrito. Você não é um administrador.', 'danger')
+        return redirect(url_for('index'))
+    
+    try:
+        nome = request.form.get('nome')
+        descricao = request.form.get('descricao')
+        preco = float(request.form.get('preco'))
+        duracao = int(request.form.get('duracao'))
+        
+        preco_sem_agendamento = request.form.get('preco_sem_agendamento')
+        if not preco_sem_agendamento:
+            # Cálculo automático (40% a mais)
+            preco_sem_agendamento = preco * 1.4
+        else:
+            preco_sem_agendamento = float(preco_sem_agendamento)
+        
+        # Cria o novo serviço
+        novo_servico = Servico(
+            nome=nome,
+            descricao=descricao,
+            preco=preco,
+            duracao=duracao,
+            preco_sem_agendamento=preco_sem_agendamento
+        )
+        
+        db.session.add(novo_servico)
+        db.session.commit()
+        flash('Serviço adicionado com sucesso!', 'success')
+    except Exception as e:
+        db.session.rollback()
+        flash(f'Erro ao adicionar serviço: {str(e)}', 'danger')
+    
+    return redirect(url_for('admin_servicos'))
+
+# Rota para editar serviço
+@app.route('/admin/servicos/editar/<int:id>', methods=['POST'])
+@login_required
+def admin_servicos_editar(id):
+    if not is_admin(current_user):
+        flash('Acesso restrito. Você não é um administrador.', 'danger')
+        return redirect(url_for('index'))
+    
+    try:
+        servico = db.session.get(Servico, id)
+        if not servico:
+            flash('Serviço não encontrado', 'danger')
+            return redirect(url_for('admin_servicos'))
+        
+        # Atualiza os dados do serviço
+        servico.nome = request.form.get('nome')
+        servico.descricao = request.form.get('descricao')
+        servico.preco = float(request.form.get('preco'))
+        servico.duracao = int(request.form.get('duracao'))
+        
+        preco_sem_agendamento = request.form.get('preco_sem_agendamento')
+        if preco_sem_agendamento:
+            servico.preco_sem_agendamento = float(preco_sem_agendamento)
+        else:
+            servico.preco_sem_agendamento = servico.preco * 1.4
+        
+        db.session.commit()
+        flash('Serviço atualizado com sucesso!', 'success')
+    except Exception as e:
+        db.session.rollback()
+        flash(f'Erro ao atualizar serviço: {str(e)}', 'danger')
+    
+    return redirect(url_for('admin_servicos'))
+
+# Rota para excluir serviço
+@app.route('/admin/servicos/excluir/<int:id>', methods=['POST'])
+@login_required
+def admin_servicos_excluir(id):
+    if not is_admin(current_user):
+        flash('Acesso restrito. Você não é um administrador.', 'danger')
+        return redirect(url_for('index'))
+    
+    try:
+        servico = db.session.get(Servico, id)
+        if not servico:
+            flash('Serviço não encontrado', 'danger')
+            return redirect(url_for('admin_servicos'))
+        
+        # Verifica se há agendamentos associados
+        agendamentos = Agendamento.query.filter_by(servico_id=id).all()
+        if agendamentos:
+            flash('Este serviço não pode ser excluído pois existem agendamentos associados a ele.', 'warning')
+            return redirect(url_for('admin_servicos'))
+        
+        db.session.delete(servico)
+        db.session.commit()
+        flash('Serviço excluído com sucesso!', 'success')
+    except Exception as e:
+        db.session.rollback()
+        flash(f'Erro ao excluir serviço: {str(e)}', 'danger')
+    
+    return redirect(url_for('admin_servicos'))
+
+# Rota para gerenciar serviços
+@app.route('/admin/servicos')
+@login_required
+def admin_servicos():
+    if not is_admin(current_user):
+        flash('Acesso restrito. Você não é um administrador.', 'danger')
+        return redirect(url_for('index'))
+    
+    servicos = Servico.query.all()
+    return render_template('admin_servicos.html', servicos=servicos)
+
+# Rota para relatórios
+@app.route('/admin/relatorios')
+@login_required
+def admin_relatorios():
+    if not is_admin(current_user):
+        flash('Acesso restrito. Você não é um administrador.', 'danger')
+        return redirect(url_for('index'))
+    
+    # Dados para o relatório
+    agendamentos = Agendamento.query.filter(
+        Agendamento.status == 'finalizado'
+    ).order_by(Agendamento.data_hora.desc()).all()
+    
+    # Cálculos de faturamento
+    total_faturado = sum(a.valor_total for a in agendamentos if a.valor_total)
+    
+    # Serviços mais populares
+    servicos_contagem = {}
+    for a in agendamentos:
+        if a.servico_principal.nome in servicos_contagem:
+            servicos_contagem[a.servico_principal.nome] += 1
+        else:
+            servicos_contagem[a.servico_principal.nome] = 1
+    
+    # Ordenar serviços por popularidade
+    servicos_populares = sorted(servicos_contagem.items(), key=lambda x: x[1], reverse=True)
+    
+    return render_template(
+        'admin_relatorios.html',
+        agendamentos=agendamentos,
+        total_faturado=total_faturado,
+        servicos_populares=servicos_populares
+    )
+
 # Inicialização do aplicativo
+def criar_admin_padrao():
+    """Cria um administrador padrão se não existir"""
+    try:
+        # Verifica se o email já existe
+        admin_existente = Usuario.query.filter(Usuario.email == 'admin@barbearia.com').first()
+        
+        if not admin_existente:
+            print("Criando administrador padrão...")
+            admin = Usuario(
+                nome='Administrador',
+                email='admin@barbearia.com',
+                telefone='00000000000',
+                is_barbeiro=True
+            )
+            admin.senha = 'admin123'  # Senha padrão
+            
+            db.session.add(admin)
+            db.session.commit()
+            print('Administrador padrão criado com sucesso!')
+        else:
+            print('Administrador já existe')
+    except Exception as e:
+        db.session.rollback()
+        print(f'Erro ao criar administrador padrão: {str(e)}')
+
 if __name__ == '__main__':
     with app.app_context():
         db.create_all()
+        # Cria administrador padrão
+        criar_admin_padrao()
         # Cria serviços iniciais se não existirem
         if not Servico.query.first():
             servicos_iniciais = [
-                Servico(nome='Corte social/degrade', descricao='Corte moderno e estiloso com degrade suave', preco=30.00, duracao=30, preco_sem_agendamento=42.00),
+                Servico(nome='Corte Social/Degradê', descricao='Corte moderno e estiloso com degradê suave', preco=30.00, duracao=30, preco_sem_agendamento=42.00),
                 Servico(nome='Corte navalhado', descricao='Corte especial finalizado com navalha para maior precisão', preco=35.00, duracao=35, preco_sem_agendamento=49.00),
                 Servico(nome='Barba', descricao='Barba com toalha quente e produtos especiais', preco=20.00, duracao=25, preco_sem_agendamento=28.00),
                 Servico(nome='Sobrancelha', descricao='Modelagem de sobrancelha masculina', preco=8.00, duracao=10, preco_sem_agendamento=11.20),
@@ -823,18 +1251,10 @@ if __name__ == '__main__':
             ]
             for servico in servicos_iniciais:
                 db.session.add(servico)
-
-            # Cria administrador padrão
-            if not Usuario.query.filter_by(email='barbeariasouzaretro@gmail.com').first():
-                admin = Usuario(
-                    nome='Administrador',
-                    email='barbeariasouzaretro@gmail.com',
-                    senha='barbearia123',
-                    telefone='85987301152',
-                    is_barbeiro=True
-                )
-                db.session.add(admin)
             
             db.session.commit()
-
-    app.run(debug=True, port=5055)
+            print("Serviços iniciais criados com sucesso!")
+    
+    # Iniciando o servidor
+    print("Iniciando o servidor Flask...")
+    app.run(debug=True, port=5057)

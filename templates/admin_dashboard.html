@@ -1,0 +1,234 @@
+{% extends 'base.html' %}
+
+{% block title %}Painel Administrativo{% endblock %}
+
+{% block styles %}
+{{ super() }}
+<style>
+    .admin-card {
+        transition: transform 0.3s;
+    }
+    .admin-card:hover {
+        transform: translateY(-5px);
+    }
+    .stat-card {
+        border-left: 4px solid #343a40;
+        border-radius: 5px;
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="container-fluid py-4">
+    <div class="row mb-4">
+        <div class="col-12">
+            <div class="d-flex justify-content-between align-items-center">
+                <h2 class="mb-0">Painel Administrativo</h2>
+                <div>
+                    <a href="{{ url_for('index') }}" class="btn btn-outline-secondary me-2">
+                        <i class="fas fa-home"></i> Voltar para o site
+                    </a>
+                    <a href="{{ url_for('logout') }}" class="btn btn-outline-danger">
+                        <i class="fas fa-sign-out-alt"></i> Sair
+                    </a>
+                </div>
+            </div>
+            <hr>
+        </div>
+    </div>
+
+    {% with messages = get_flashed_messages(with_categories=true) %}
+        {% if messages %}
+            {% for category, message in messages %}
+                <div class="alert alert-{{ category }} alert-dismissible fade show">
+                    {{ message }}
+                    <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+                </div>
+            {% endfor %}
+        {% endif %}
+    {% endwith %}
+
+    <!-- Estatísticas -->
+    <div class="row mb-4">
+        <div class="col-xl-3 col-md-6 mb-3">
+            <div class="card stat-card h-100 bg-light shadow-sm">
+                <div class="card-body">
+                    <div class="row align-items-center">
+                        <div class="col-3 text-center">
+                            <i class="fas fa-user-tie fa-2x text-dark"></i>
+                        </div>
+                        <div class="col-9">
+                            <h4 class="mb-0">{{ total_barbeiros }}</h4>
+                            <div class="text-muted">Barbeiros</div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+        <div class="col-xl-3 col-md-6 mb-3">
+            <div class="card stat-card h-100 bg-light shadow-sm">
+                <div class="card-body">
+                    <div class="row align-items-center">
+                        <div class="col-3 text-center">
+                            <i class="fas fa-users fa-2x text-dark"></i>
+                        </div>
+                        <div class="col-9">
+                            <h4 class="mb-0">{{ total_clientes }}</h4>
+                            <div class="text-muted">Clientes</div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+        <div class="col-xl-3 col-md-6 mb-3">
+            <div class="card stat-card h-100 bg-light shadow-sm">
+                <div class="card-body">
+                    <div class="row align-items-center">
+                        <div class="col-3 text-center">
+                            <i class="fas fa-calendar-check fa-2x text-dark"></i>
+                        </div>
+                        <div class="col-9">
+                            <h4 class="mb-0">{{ total_agendamentos_hoje }}</h4>
+                            <div class="text-muted">Agendamentos Hoje</div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+        <div class="col-xl-3 col-md-6 mb-3">
+            <div class="card stat-card h-100 bg-light shadow-sm">
+                <div class="card-body">
+                    <div class="row align-items-center">
+                        <div class="col-3 text-center">
+                            <i class="fas fa-clipboard-list fa-2x text-dark"></i>
+                        </div>
+                        <div class="col-9">
+                            <h4 class="mb-0">{{ total_agendamentos_pendentes }}</h4>
+                            <div class="text-muted">Pendentes</div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Gerenciamento Cards -->
+    <div class="row">
+        <div class="col-xl-4 col-md-6 mb-4">
+            <div class="card admin-card shadow h-100">
+                <div class="card-body">
+                    <h5 class="card-title">
+                        <i class="fas fa-user-tie me-2"></i>Gerenciar Barbeiros
+                    </h5>
+                    <p class="card-text">Cadastre, edite ou remova barbeiros. Gerencie suas habilidades e disponibilidade.</p>
+                </div>
+                <div class="card-footer bg-transparent border-0">
+                    <a href="{{ url_for('admin_barbeiros') }}" class="btn btn-dark w-100">
+                        <i class="fas fa-cogs me-2"></i>Gerenciar
+                    </a>
+                </div>
+            </div>
+        </div>
+        <div class="col-xl-4 col-md-6 mb-4">
+            <div class="card admin-card shadow h-100">
+                <div class="card-body">
+                    <h5 class="card-title">
+                        <i class="fas fa-cut me-2"></i>Gerenciar Serviços
+                    </h5>
+                    <p class="card-text">Adicione, edite ou remova serviços oferecidos. Atualize preços e descrições.</p>
+                </div>
+                <div class="card-footer bg-transparent border-0">
+                    <a href="{{ url_for('admin_servicos') }}" class="btn btn-dark w-100">
+                        <i class="fas fa-cogs me-2"></i>Gerenciar
+                    </a>
+                </div>
+            </div>
+        </div>
+        <div class="col-xl-4 col-md-6 mb-4">
+            <div class="card admin-card shadow h-100">
+                <div class="card-body">
+                    <h5 class="card-title">
+                        <i class="fas fa-chart-bar me-2"></i>Relatórios
+                    </h5>
+                    <p class="card-text">Visualize estatísticas, faturamento e relatórios de desempenho do negócio.</p>
+                </div>
+                <div class="card-footer bg-transparent border-0">
+                    <a href="{{ url_for('admin_relatorios') }}" class="btn btn-dark w-100">
+                        <i class="fas fa-cogs me-2"></i>Acessar
+                    </a>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Resumo dos Barbeiros -->
+    <div class="row mt-4">
+        <div class="col-12">
+            <div class="card shadow">
+                <div class="card-header bg-dark text-white">
+                    <h5 class="mb-0">Barbeiros da Equipe</h5>
+                </div>
+                <div class="card-body">
+                    <div class="table-responsive">
+                        <table class="table table-hover">
+                            <thead>
+                                <tr>
+                                    <th>Nome</th>
+                                    <th>Email</th>
+                                    <th>Telefone</th>
+                                    <th>Agendamentos</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {% for barbeiro in barbeiros %}
+                                <tr>
+                                    <td>{{ barbeiro.nome }}</td>
+                                    <td>{{ barbeiro.email }}</td>
+                                    <td>{{ barbeiro.telefone }}</td>
+                                    <td>{{ barbeiro.agendamentos_barbeiro|length }}</td>
+                                </tr>
+                                {% endfor %}
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Resumo dos Serviços -->
+    <div class="row mt-4">
+        <div class="col-12">
+            <div class="card shadow">
+                <div class="card-header bg-dark text-white">
+                    <h5 class="mb-0">Serviços Oferecidos</h5>
+                </div>
+                <div class="card-body">
+                    <div class="table-responsive">
+                        <table class="table table-hover">
+                            <thead>
+                                <tr>
+                                    <th>Serviço</th>
+                                    <th>Descrição</th>
+                                    <th>Preço</th>
+                                    <th>Duração</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {% for servico in servicos %}
+                                <tr>
+                                    <td>{{ servico.nome }}</td>
+                                    <td>{{ servico.descricao }}</td>
+                                    <td>R$ {{ "%.2f"|format(servico.preco) }}</td>
+                                    <td>{{ servico.duracao }} min</td>
+                                </tr>
+                                {% endfor %}
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %} 

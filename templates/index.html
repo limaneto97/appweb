@@ -39,24 +39,24 @@
 </div>
 
 <div class="row mb-5">
-    {% if servicos_destaque.corte %}
+    {% if servicos_destaque.corte_social %}
     <div class="col-md-6 mb-4">
         <div class="card h-100 border-primary">
             <div class="card-header bg-primary text-white">
-                <h4 class="card-title mb-0"><i class="bi bi-scissors me-2"></i>{{ servicos_destaque.corte.nome }}</h4>
+                <h4 class="card-title mb-0"><i class="bi bi-scissors me-2"></i>{{ servicos_destaque.corte_social.nome }}</h4>
             </div>
             <div class="card-body">
-                <p class="card-text">{{ servicos_destaque.corte.descricao or "Cortes modernos e tradicionais, feitos por profissionais experientes." }}</p>
+                <p class="card-text">{{ servicos_destaque.corte_social.descricao or "Corte social moderno com degradê nas laterais." }}</p>
                 <div class="mb-3">
-                    <span class="badge bg-info text-dark">Duração: {{ servicos_destaque.corte.duracao }} minutos</span>
+                    <span class="badge bg-info text-dark">Duração: {{ servicos_destaque.corte_social.duracao }} minutos</span>
                 </div>
                 
                 <div class="d-flex justify-content-between align-items-center">
                     <div>
-                        <span class="fw-bold fs-4">R$ {{ "%.2f"|format(servicos_destaque.corte.preco) }}</span>
+                        <span class="fw-bold fs-4">R$ {{ "%.2f"|format(servicos_destaque.corte_social.preco) }}</span>
                         {% if not current_user.is_authenticated %}
                         <div class="text-danger small">
-                            <span>Sem agendamento: R$ {{ "%.2f"|format(servicos_destaque.corte.preco_sem_agendamento or (servicos_destaque.corte.preco * 1.4)) }}</span>
+                            <span>Sem agendamento: R$ {{ "%.2f"|format(servicos_destaque.corte_social.preco_sem_agendamento or (servicos_destaque.corte_social.preco * 1.4)) }}</span>
                         </div>
                         {% endif %}
                     </div>

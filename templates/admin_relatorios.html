@@ -1,0 +1,191 @@
+{% extends 'base.html' %}
+
+{% block title %}Relatórios{% endblock %}
+
+{% block styles %}
+{{ super() }}
+<style>
+    .stat-card {
+        transition: all 0.3s;
+    }
+    .stat-card:hover {
+        transform: translateY(-5px);
+        box-shadow: 0 10px 20px rgba(0,0,0,0.1);
+    }
+    .revenue-value {
+        font-size: 2rem;
+        font-weight: bold;
+        color: #2c3e50;
+    }
+    .chart-container {
+        height: 300px;
+        margin-bottom: 20px;
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="container-fluid py-4">
+    <div class="row mb-4">
+        <div class="col-12">
+            <div class="d-flex justify-content-between align-items-center">
+                <h2 class="mb-0">Relatórios</h2>
+                <div>
+                    <a href="{{ url_for('admin_dashboard') }}" class="btn btn-outline-secondary me-2">
+                        <i class="bi bi-arrow-left"></i> Voltar ao Painel
+                    </a>
+                    <button class="btn btn-outline-primary" onclick="window.print()">
+                        <i class="bi bi-printer me-2"></i>Imprimir Relatório
+                    </button>
+                </div>
+            </div>
+            <hr>
+        </div>
+    </div>
+
+    {% with messages = get_flashed_messages(with_categories=true) %}
+        {% if messages %}
+            {% for category, message in messages %}
+                <div class="alert alert-{{ category }} alert-dismissible fade show">
+                    {{ message }}
+                    <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+                </div>
+            {% endfor %}
+        {% endif %}
+    {% endwith %}
+
+    <!-- Resumo Financeiro -->
+    <div class="row mb-4">
+        <div class="col-12">
+            <div class="card stat-card shadow">
+                <div class="card-header bg-dark text-white">
+                    <h5 class="mb-0">Resumo Financeiro</h5>
+                </div>
+                <div class="card-body">
+                    <div class="row align-items-center">
+                        <div class="col-md-6 text-center mb-3 mb-md-0">
+                            <div class="revenue-value">
+                                R$ {{ "%.2f"|format(total_faturado) }}
+                            </div>
+                            <p class="text-muted mb-0">Faturamento Total</p>
+                        </div>
+                        <div class="col-md-6">
+                            <div class="row text-center">
+                                <div class="col-6 mb-3">
+                                    <h5>{{ agendamentos|length }}</h5>
+                                    <p class="text-muted mb-0">Agendamentos Concluídos</p>
+                                </div>
+                                <div class="col-6 mb-3">
+                                    <h5>R$ {{ "%.2f"|format(total_faturado / agendamentos|length if agendamentos|length > 0 else 0) }}</h5>
+                                    <p class="text-muted mb-0">Valor Médio</p>
+                                </div>
+                                <div class="col-6">
+                                    <h5>{{ servicos_populares|length }}</h5>
+                                    <p class="text-muted mb-0">Serviços Oferecidos</p>
+                                </div>
+                                <div class="col-6">
+                                    <h5>{{ servicos_populares[0][0] if servicos_populares }}</h5>
+                                    <p class="text-muted mb-0">Serviço + Popular</p>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Serviços Populares -->
+    <div class="row mb-4">
+        <div class="col-md-6">
+            <div class="card stat-card shadow h-100">
+                <div class="card-header bg-dark text-white">
+                    <h5 class="mb-0">Serviços Mais Populares</h5>
+                </div>
+                <div class="card-body">
+                    <div class="table-responsive">
+                        <table class="table table-hover">
+                            <thead>
+                                <tr>
+                                    <th>#</th>
+                                    <th>Serviço</th>
+                                    <th>Quantidade</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {% for servico, quantidade in servicos_populares %}
+                                <tr>
+                                    <td>{{ loop.index }}</td>
+                                    <td>{{ servico }}</td>
+                                    <td>{{ quantidade }}</td>
+                                </tr>
+                                {% endfor %}
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-6">
+            <div class="card stat-card shadow h-100">
+                <div class="card-header bg-dark text-white">
+                    <h5 class="mb-0">Gráfico de Serviços</h5>
+                </div>
+                <div class="card-body">
+                    <div class="alert alert-info">
+                        <i class="bi bi-info-circle me-2"></i> Aqui seria exibido um gráfico de pizza dos serviços mais populares.
+                    </div>
+                    <div class="chart-container">
+                        <div class="text-center text-muted" style="padding-top: 120px;">
+                            <i class="bi bi-pie-chart" style="font-size: 3rem;"></i>
+                            <p class="mt-2">Gráfico de distribuição dos serviços</p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Últimos Agendamentos -->
+    <div class="row">
+        <div class="col-12">
+            <div class="card stat-card shadow">
+                <div class="card-header bg-dark text-white">
+                    <h5 class="mb-0">Últimos Agendamentos Finalizados</h5>
+                </div>
+                <div class="card-body">
+                    <div class="table-responsive">
+                        <table class="table table-striped">
+                            <thead>
+                                <tr>
+                                    <th>Data</th>
+                                    <th>Cliente</th>
+                                    <th>Barbeiro</th>
+                                    <th>Serviço</th>
+                                    <th>Valor</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {% for agendamento in agendamentos[:10] %}
+                                <tr>
+                                    <td>{{ agendamento.data_hora.strftime('%d/%m/%Y %H:%M') }}</td>
+                                    <td>{{ agendamento.cliente.nome }}</td>
+                                    <td>{{ agendamento.barbeiro.nome }}</td>
+                                    <td>{{ agendamento.servico_principal.nome }}</td>
+                                    <td>R$ {{ "%.2f"|format(agendamento.valor_total) }}</td>
+                                </tr>
+                                {% endfor %}
+                            </tbody>
+                        </table>
+                    </div>
+                    {% if agendamentos|length > 10 %}
+                    <div class="text-center mt-3">
+                        <p class="text-muted">Mostrando 10 de {{ agendamentos|length }} agendamentos.</p>
+                    </div>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %} 

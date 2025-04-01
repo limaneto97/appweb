@@ -2,7 +2,7 @@ from app import app, db, Servico
 
 # Lista de serviços: (nome, descrição, preço, duração em minutos)
 services = [
-    ('Corte social/degrade', 'Corte social moderno com degrade nas laterais', 30.00, 30),
+    ('Corte Social/Degradê', 'Corte moderno e estiloso com degradê suave', 30.00, 30),
     ('Corte navalhado', 'Corte finalizado com navalha para maior precisão', 35.00, 30),
     ('Barba', 'Aparo e modelagem completa da barba', 20.00, 25),
     ('Sobrancelha', 'Design e acabamento de sobrancelha', 8.00, 15),
@@ -14,7 +14,8 @@ services = [
     ('Penteado', 'Modelagem e penteado', 10.00, 15),
     ('Luzes', 'Mechas e luzes no cabelo', 40.00, 60),
     ('Descoloração platinado', 'Processo de descoloração completa', 80.00, 120),
-    ('Hidratação', 'Hidratação profunda dos fios', 10.00, 30)
+    ('Hidratação', 'Hidratação profunda dos fios', 10.00, 30),
+    ('Corte + Barba', 'Combinação de corte de cabelo e barba', 45.00, 50)
 ]
 
 with app.app_context():

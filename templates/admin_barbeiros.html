@@ -1,0 +1,285 @@
+{% extends 'base.html' %}
+
+{% block title %}Gerenciar Barbeiros{% endblock %}
+
+{% block styles %}
+{{ super() }}
+<style>
+    .barber-card {
+        transition: all 0.3s;
+    }
+    .barber-card:hover {
+        transform: translateY(-5px);
+        box-shadow: 0 10px 20px rgba(0,0,0,0.1);
+    }
+    .barber-image {
+        width: 80px;
+        height: 80px;
+        object-fit: cover;
+        border-radius: 50%;
+        margin-right: 1rem;
+    }
+    .appointment-count {
+        font-size: 1.2rem;
+        font-weight: bold;
+        color: #2c3e50;
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="container-fluid py-4">
+    <div class="row mb-4">
+        <div class="col-12">
+            <div class="d-flex justify-content-between align-items-center">
+                <h2 class="mb-0">Gerenciar Barbeiros</h2>
+                <div>
+                    <a href="{{ url_for('admin_dashboard') }}" class="btn btn-outline-secondary me-2">
+                        <i class="bi bi-arrow-left"></i> Voltar ao Painel
+                    </a>
+                    <button type="button" class="btn btn-dark" data-bs-toggle="modal" data-bs-target="#addBarberModal">
+                        <i class="bi bi-plus-circle"></i> Novo Barbeiro
+                    </button>
+                </div>
+            </div>
+            <hr>
+        </div>
+    </div>
+
+    {% with messages = get_flashed_messages(with_categories=true) %}
+        {% if messages %}
+            {% for category, message in messages %}
+                <div class="alert alert-{{ category }} alert-dismissible fade show">
+                    {{ message }}
+                    <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+                </div>
+            {% endfor %}
+        {% endif %}
+    {% endwith %}
+
+    <!-- Barbeiros -->
+    <div class="row">
+        {% for barbeiro in barbeiros %}
+        <div class="col-lg-4 col-md-6 mb-4">
+            <div class="card barber-card h-100">
+                <div class="card-header bg-dark text-white d-flex justify-content-between align-items-center">
+                    <h5 class="mb-0">{{ barbeiro.nome }}</h5>
+                    <div class="dropdown">
+                        <button class="btn btn-sm btn-dark" type="button" data-bs-toggle="dropdown">
+                            <i class="bi bi-three-dots-vertical"></i>
+                        </button>
+                        <ul class="dropdown-menu">
+                            <li>
+                                <button class="dropdown-item" data-bs-toggle="modal" 
+                                   data-bs-target="#editBarberModal{{ barbeiro.id }}">
+                                    <i class="bi bi-pencil me-2"></i>Editar
+                                </button>
+                            </li>
+                            <li>
+                                <button class="dropdown-item" data-bs-toggle="modal" 
+                                   data-bs-target="#servicesBarberModal{{ barbeiro.id }}">
+                                    <i class="bi bi-scissors me-2"></i>Gerenciar Serviços
+                                </button>
+                            </li>
+                            <li>
+                                <button class="dropdown-item text-danger" data-bs-toggle="modal" 
+                                   data-bs-target="#deleteBarberModal{{ barbeiro.id }}">
+                                    <i class="bi bi-trash me-2"></i>Excluir
+                                </button>
+                            </li>
+                        </ul>
+                    </div>
+                </div>
+                <div class="card-body">
+                    <div class="d-flex align-items-center mb-3">
+                        <img src="{{ url_for('static', filename='img/avatar-default.png') }}" alt="{{ barbeiro.nome }}" class="barber-image">
+                        <div>
+                            <p class="mb-1"><i class="bi bi-envelope me-2"></i>{{ barbeiro.email }}</p>
+                            <p class="mb-0"><i class="bi bi-telephone me-2"></i>{{ barbeiro.telefone }}</p>
+                        </div>
+                    </div>
+                    <div class="row text-center">
+                        <div class="col">
+                            <div class="appointment-count">{{ barbeiro.agendamentos_barbeiro|length }}</div>
+                            <div class="text-muted">Agendamentos</div>
+                        </div>
+                        <div class="col">
+                            <div class="appointment-count">{{ barbeiro.servicos|length }}</div>
+                            <div class="text-muted">Serviços</div>
+                        </div>
+                    </div>
+                </div>
+                <div class="card-footer bg-light">
+                    <div class="d-grid">
+                        <button class="btn btn-outline-secondary" type="button" data-bs-toggle="modal" 
+                               data-bs-target="#scheduleBarberModal{{ barbeiro.id }}">
+                            <i class="bi bi-calendar-check me-2"></i>Ver Agenda
+                        </button>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Modal de Edição para cada barbeiro -->
+        <div class="modal fade" id="editBarberModal{{ barbeiro.id }}" tabindex="-1">
+            <div class="modal-dialog">
+                <div class="modal-content">
+                    <div class="modal-header bg-dark text-white">
+                        <h5 class="modal-title">Editar Barbeiro</h5>
+                        <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
+                    </div>
+                    <form action="{{ url_for('admin_barbeiros_editar', id=barbeiro.id) }}" method="POST">
+                        <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
+                        <div class="modal-body">
+                            <div class="mb-3">
+                                <label for="nome{{ barbeiro.id }}" class="form-label">Nome</label>
+                                <input type="text" class="form-control" id="nome{{ barbeiro.id }}" name="nome" 
+                                       value="{{ barbeiro.nome }}" required>
+                            </div>
+                            <div class="mb-3">
+                                <label for="email{{ barbeiro.id }}" class="form-label">Email</label>
+                                <input type="email" class="form-control" id="email{{ barbeiro.id }}" name="email" 
+                                       value="{{ barbeiro.email }}" required>
+                            </div>
+                            <div class="mb-3">
+                                <label for="telefone{{ barbeiro.id }}" class="form-label">Telefone</label>
+                                <input type="tel" class="form-control" id="telefone{{ barbeiro.id }}" name="telefone" 
+                                       value="{{ barbeiro.telefone }}" required>
+                            </div>
+                            <div class="mb-3">
+                                <label for="senha{{ barbeiro.id }}" class="form-label">Nova Senha (opcional)</label>
+                                <input type="password" class="form-control" id="senha{{ barbeiro.id }}" name="senha" 
+                                       minlength="6">
+                                <small class="text-muted">Deixe em branco para manter a senha atual</small>
+                            </div>
+                        </div>
+                        <div class="modal-footer">
+                            <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancelar</button>
+                            <button type="submit" class="btn btn-primary">Salvar Alterações</button>
+                        </div>
+                    </form>
+                </div>
+            </div>
+        </div>
+
+        <!-- Modal de Confirmação de Exclusão -->
+        <div class="modal fade" id="deleteBarberModal{{ barbeiro.id }}" tabindex="-1">
+            <div class="modal-dialog">
+                <div class="modal-content">
+                    <div class="modal-header bg-danger text-white">
+                        <h5 class="modal-title">Confirmar Exclusão</h5>
+                        <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
+                    </div>
+                    <div class="modal-body">
+                        <p>Tem certeza que deseja excluir o barbeiro <strong>{{ barbeiro.nome }}</strong>?</p>
+                        <p class="text-danger"><small>Esta ação não pode ser desfeita e todos os agendamentos associados a este barbeiro serão excluídos.</small></p>
+                    </div>
+                    <div class="modal-footer">
+                        <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancelar</button>
+                        <form action="{{ url_for('admin_barbeiros_excluir', id=barbeiro.id) }}" method="POST">
+                            <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
+                            <button type="submit" class="btn btn-danger">Excluir Barbeiro</button>
+                        </form>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Modal de Gerenciamento de Serviços do Barbeiro -->
+        <div class="modal fade" id="servicesBarberModal{{ barbeiro.id }}" tabindex="-1">
+            <div class="modal-dialog modal-lg">
+                <div class="modal-content">
+                    <div class="modal-header bg-dark text-white">
+                        <h5 class="modal-title">Serviços de {{ barbeiro.nome }}</h5>
+                        <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
+                    </div>
+                    <form action="{{ url_for('admin_barbeiros_servicos', id=barbeiro.id) }}" method="POST">
+                        <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
+                        <div class="modal-body">
+                            <div class="row">
+                                {% for servico in servicos %}
+                                <div class="col-md-4 mb-3">
+                                    <div class="form-check">
+                                        <input class="form-check-input" type="checkbox" name="servicos[]" 
+                                               value="{{ servico.id }}" id="servico{{ barbeiro.id }}_{{ servico.id }}"
+                                               {% if servico in barbeiro.servicos %}checked{% endif %}>
+                                        <label class="form-check-label" for="servico{{ barbeiro.id }}_{{ servico.id }}">
+                                            {{ servico.nome }}
+                                        </label>
+                                    </div>
+                                </div>
+                                {% endfor %}
+                            </div>
+                        </div>
+                        <div class="modal-footer">
+                            <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancelar</button>
+                            <button type="submit" class="btn btn-primary">Salvar Serviços</button>
+                        </div>
+                    </form>
+                </div>
+            </div>
+        </div>
+        {% endfor %}
+    </div>
+
+    <!-- Se não houver barbeiros cadastrados -->
+    {% if not barbeiros %}
+    <div class="alert alert-info">
+        <i class="bi bi-info-circle me-2"></i> Não há barbeiros cadastrados. Adicione um novo barbeiro clicando no botão acima.
+    </div>
+    {% endif %}
+</div>
+
+<!-- Modal para Adicionar Novo Barbeiro -->
+<div class="modal fade" id="addBarberModal" tabindex="-1">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header bg-dark text-white">
+                <h5 class="modal-title">Adicionar Novo Barbeiro</h5>
+                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
+            </div>
+            <form action="{{ url_for('admin_barbeiros_adicionar') }}" method="POST">
+                <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
+                <div class="modal-body">
+                    <div class="mb-3">
+                        <label for="nome" class="form-label">Nome</label>
+                        <input type="text" class="form-control" id="nome" name="nome" required>
+                    </div>
+                    <div class="mb-3">
+                        <label for="email" class="form-label">Email</label>
+                        <input type="email" class="form-control" id="email" name="email" required>
+                    </div>
+                    <div class="mb-3">
+                        <label for="telefone" class="form-label">Telefone</label>
+                        <input type="tel" class="form-control" id="telefone" name="telefone" required>
+                    </div>
+                    <div class="mb-3">
+                        <label for="senha" class="form-label">Senha</label>
+                        <input type="password" class="form-control" id="senha" name="senha" required minlength="6">
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label">Serviços oferecidos</label>
+                        <div class="row">
+                            {% for servico in servicos %}
+                            <div class="col-md-6 mb-2">
+                                <div class="form-check">
+                                    <input class="form-check-input" type="checkbox" name="servicos[]" 
+                                           value="{{ servico.id }}" id="servico_{{ servico.id }}">
+                                    <label class="form-check-label" for="servico_{{ servico.id }}">
+                                        {{ servico.nome }}
+                                    </label>
+                                </div>
+                            </div>
+                            {% endfor %}
+                        </div>
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancelar</button>
+                    <button type="submit" class="btn btn-primary">Adicionar Barbeiro</button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+{% endblock %} 

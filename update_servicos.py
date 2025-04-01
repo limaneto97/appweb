@@ -2,10 +2,10 @@ from app import app, db, Servico
 
 # Valores atualizados dos serviços conforme a página inicial
 servicos_atualizados = [
-    {"nome": "Corte de Cabelo", "preco": 30.00},
-    {"nome": "Barba", "preco": 25.00},
-    {"nome": "Hidratação", "preco": 40.00},
-    {"nome": "Corte + Barba", "preco": 50.00}
+    {"nome": "Corte Social/Degradê", "preco": 30.00},
+    {"nome": "Barba", "preco": 20.00},
+    {"nome": "Hidratação", "preco": 10.00},
+    {"nome": "Corte + Barba", "preco": 45.00}
 ]
 
 with app.app_context():
