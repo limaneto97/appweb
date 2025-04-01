@@ -1,0 +1,260 @@
+{% extends "base.html" %}
+
+{% block title %}Início - Barbearia Souza{% endblock %}
+
+{% block content %}
+<div class="row align-items-center py-5">
+    <div class="col-md-6">
+        <h1 class="display-4 fw-bold mb-4">Bem-vindo à Barbearia Souza</h1>
+        <p class="lead mb-4">Agende seu horário de forma rápida e fácil. Oferecemos os melhores serviços de corte de cabelo e barba da região.</p>
+        {% if not current_user.is_authenticated %}
+            <div class="alert alert-warning">
+                <i class="bi bi-exclamation-triangle-fill"></i> <strong>Economia de até 40%!</strong> Clientes cadastrados têm preços especiais.
+            </div>
+            <a href="{{ url_for('login') }}" class="btn btn-primary btn-lg me-2">Faça Login</a>
+            <a href="{{ url_for('registro') }}" class="btn btn-outline-primary btn-lg">Cadastre-se</a>
+        {% else %}
+            <a href="{{ url_for('agendar') }}" class="btn btn-primary btn-lg">Agendar Horário</a>
+        {% endif %}
+    </div>
+    <div class="col-md-6">
+        <img src="https://images.unsplash.com/photo-1503951914873-452162b0f3f1?ixlib=rb-1.2.1&auto=format&fit=crop&w=800&q=80" 
+             alt="Barbearia Souza" class="img-fluid rounded shadow">
+    </div>
+</div>
+
+<!-- Seção de Serviços e Preços -->
+<div class="row mt-5">
+    <div class="col-12 text-center mb-4">
+        <h2 class="fw-bold">Nossos Serviços</h2>
+        <p class="text-muted">Conheça os serviços que oferecemos e seus respectivos preços</p>
+        
+        {% if not current_user.is_authenticated %}
+        <div class="alert alert-info d-inline-block mx-auto">
+            <i class="bi bi-info-circle-fill"></i> Os preços abaixo são para <strong>clientes cadastrados com agendamento</strong>. 
+            Serviços sem agendamento têm acréscimo de 40%.
+        </div>
+        {% endif %}
+    </div>
+</div>
+
+<div class="row mb-5">
+    {% if servicos_destaque.corte %}
+    <div class="col-md-6 mb-4">
+        <div class="card h-100 border-primary">
+            <div class="card-header bg-primary text-white">
+                <h4 class="card-title mb-0"><i class="bi bi-scissors me-2"></i>{{ servicos_destaque.corte.nome }}</h4>
+            </div>
+            <div class="card-body">
+                <p class="card-text">{{ servicos_destaque.corte.descricao or "Cortes modernos e tradicionais, feitos por profissionais experientes." }}</p>
+                <div class="mb-3">
+                    <span class="badge bg-info text-dark">Duração: {{ servicos_destaque.corte.duracao }} minutos</span>
+                </div>
+                
+                <div class="d-flex justify-content-between align-items-center">
+                    <div>
+                        <span class="fw-bold fs-4">R$ {{ "%.2f"|format(servicos_destaque.corte.preco) }}</span>
+                        {% if not current_user.is_authenticated %}
+                        <div class="text-danger small">
+                            <span>Sem agendamento: R$ {{ "%.2f"|format(servicos_destaque.corte.preco_sem_agendamento or (servicos_destaque.corte.preco * 1.4)) }}</span>
+                        </div>
+                        {% endif %}
+                    </div>
+                    <a href="{{ url_for('agendar') if current_user.is_authenticated else url_for('login') }}" class="btn btn-outline-primary">Agendar</a>
+                </div>
+            </div>
+        </div>
+    </div>
+    {% endif %}
+    
+    {% if servicos_destaque.barba %}
+    <div class="col-md-6 mb-4">
+        <div class="card h-100 border-primary">
+            <div class="card-header bg-primary text-white">
+                <h4 class="card-title mb-0"><i class="bi bi-brush me-2"></i>{{ servicos_destaque.barba.nome }}</h4>
+            </div>
+            <div class="card-body">
+                <p class="card-text">{{ servicos_destaque.barba.descricao or "Aparar, modelar e hidratar sua barba com produtos de qualidade." }}</p>
+                <div class="mb-3">
+                    <span class="badge bg-info text-dark">Duração: {{ servicos_destaque.barba.duracao }} minutos</span>
+                </div>
+                
+                <div class="d-flex justify-content-between align-items-center">
+                    <div>
+                        <span class="fw-bold fs-4">R$ {{ "%.2f"|format(servicos_destaque.barba.preco) }}</span>
+                        {% if not current_user.is_authenticated %}
+                        <div class="text-danger small">
+                            <span>Sem agendamento: R$ {{ "%.2f"|format(servicos_destaque.barba.preco_sem_agendamento or (servicos_destaque.barba.preco * 1.4)) }}</span>
+                        </div>
+                        {% endif %}
+                    </div>
+                    <a href="{{ url_for('agendar') if current_user.is_authenticated else url_for('login') }}" class="btn btn-outline-primary">Agendar</a>
+                </div>
+            </div>
+        </div>
+    </div>
+    {% endif %}
+
+    {% if servicos_destaque.hidratacao %}
+    <div class="col-md-6 mb-4">
+        <div class="card h-100 border-primary">
+            <div class="card-header bg-primary text-white">
+                <h4 class="card-title mb-0"><i class="bi bi-droplet me-2"></i>{{ servicos_destaque.hidratacao.nome }}</h4>
+            </div>
+            <div class="card-body">
+                <p class="card-text">{{ servicos_destaque.hidratacao.descricao or "Tratamento completo para cabelos ressecados ou danificados." }}</p>
+                <div class="mb-3">
+                    <span class="badge bg-info text-dark">Duração: {{ servicos_destaque.hidratacao.duracao }} minutos</span>
+                </div>
+                
+                <div class="d-flex justify-content-between align-items-center">
+                    <div>
+                        <span class="fw-bold fs-4">R$ {{ "%.2f"|format(servicos_destaque.hidratacao.preco) }}</span>
+                        {% if not current_user.is_authenticated %}
+                        <div class="text-danger small">
+                            <span>Sem agendamento: R$ {{ "%.2f"|format(servicos_destaque.hidratacao.preco_sem_agendamento or (servicos_destaque.hidratacao.preco * 1.4)) }}</span>
+                        </div>
+                        {% endif %}
+                    </div>
+                    <a href="{{ url_for('agendar') if current_user.is_authenticated else url_for('login') }}" class="btn btn-outline-primary">Agendar</a>
+                </div>
+            </div>
+        </div>
+    </div>
+    {% endif %}
+
+    {% if servicos_destaque.combo %}
+    <div class="col-md-6 mb-4">
+        <div class="card h-100 border-primary">
+            <div class="card-header bg-primary text-white">
+                <h4 class="card-title mb-0"><i class="bi bi-stars me-2"></i>{{ servicos_destaque.combo.nome }}</h4>
+            </div>
+            <div class="card-body">
+                <p class="card-text">{{ servicos_destaque.combo.descricao or "Pacote completo: corte de cabelo e barba com um preço especial." }}</p>
+                <div class="mb-3">
+                    <span class="badge bg-info text-dark">Duração: {{ servicos_destaque.combo.duracao }} minutos</span>
+                </div>
+                
+                <div class="d-flex justify-content-between align-items-center">
+                    <div>
+                        <span class="fw-bold fs-4">R$ {{ "%.2f"|format(servicos_destaque.combo.preco) }}</span>
+                        {% if not current_user.is_authenticated %}
+                        <div class="text-danger small">
+                            <span>Sem agendamento: R$ {{ "%.2f"|format(servicos_destaque.combo.preco_sem_agendamento or (servicos_destaque.combo.preco * 1.4)) }}</span>
+                        </div>
+                        {% endif %}
+                    </div>
+                    <a href="{{ url_for('agendar') if current_user.is_authenticated else url_for('login') }}" class="btn btn-outline-primary">Agendar</a>
+                </div>
+            </div>
+        </div>
+    </div>
+    {% endif %}
+    
+    {% if not servicos_destaque %}
+        <div class="col-12">
+            <div class="alert alert-warning">
+                <i class="bi bi-exclamation-triangle-fill"></i> Ainda não temos serviços cadastrados. Por favor, entre em contato com o administrador.
+            </div>
+        </div>
+    {% endif %}
+</div>
+
+<div class="row mt-5">
+    <div class="col-md-4">
+        <div class="card h-100">
+            <div class="card-body text-center">
+                <i class="bi bi-scissors display-4 text-primary mb-3"></i>
+                <h3 class="card-title">Cortes Modernos</h3>
+                <p class="card-text">Realizamos os mais diversos tipos de corte, desde os mais tradicionais até os mais modernos.</p>
+            </div>
+        </div>
+    </div>
+    <div class="col-md-4">
+        <div class="card h-100">
+            <div class="card-body text-center">
+                <i class="bi bi-clock display-4 text-primary mb-3"></i>
+                <h3 class="card-title">Agendamento Online</h3>
+                <p class="card-text">Agende seu horário de forma rápida e prática através do nosso sistema online.</p>
+            </div>
+        </div>
+    </div>
+    <div class="col-md-4">
+        <div class="card h-100">
+            <div class="card-body text-center">
+                <i class="bi bi-piggy-bank display-4 text-primary mb-3"></i>
+                <h3 class="card-title">Programa de Fidelidade</h3>
+                <p class="card-text">Ganhe um corte gratuito a cada 10 agendamentos concluídos. Aproveite nossos descontos exclusivos!</p>
+            </div>
+        </div>
+    </div>
+</div>
+
+<div class="row mt-5">
+    <div class="col-12">
+        <div class="alert alert-primary">
+            <h4 class="alert-heading"><i class="bi bi-info-circle"></i> Por que agendar?</h4>
+            <hr>
+            <div class="row">
+                <div class="col-md-6">
+                    <div class="d-flex mb-2">
+                        <div class="bg-primary rounded-circle p-2 me-2 d-flex align-items-center justify-content-center" style="width: 40px; height: 40px;">
+                            <i class="bi bi-cash text-white"></i>
+                        </div>
+                        <div>
+                            <h5 class="mb-0">Economia</h5>
+                            <p>Economize até 40% nos preços de todos os serviços</p>
+                        </div>
+                    </div>
+                    <div class="d-flex mb-2">
+                        <div class="bg-primary rounded-circle p-2 me-2 d-flex align-items-center justify-content-center" style="width: 40px; height: 40px;">
+                            <i class="bi bi-clock text-white"></i>
+                        </div>
+                        <div>
+                            <h5 class="mb-0">Sem espera</h5>
+                            <p>Seu horário é exclusivo, sem filas ou espera</p>
+                        </div>
+                    </div>
+                </div>
+                <div class="col-md-6">
+                    <div class="d-flex mb-2">
+                        <div class="bg-primary rounded-circle p-2 me-2 d-flex align-items-center justify-content-center" style="width: 40px; height: 40px;">
+                            <i class="bi bi-trophy text-white"></i>
+                        </div>
+                        <div>
+                            <h5 class="mb-0">Fidelidade</h5>
+                            <p>Acumule pontos e ganhe um corte grátis a cada 10 agendamentos</p>
+                        </div>
+                    </div>
+                    <div class="d-flex mb-2">
+                        <div class="bg-primary rounded-circle p-2 me-2 d-flex align-items-center justify-content-center" style="width: 40px; height: 40px;">
+                            <i class="bi bi-bell text-white"></i>
+                        </div>
+                        <div>
+                            <h5 class="mb-0">Lembretes</h5>
+                            <p>Receba lembretes sobre seus agendamentos via WhatsApp</p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            
+            <div class="bg-light p-3 rounded mt-3">
+                <div class="row align-items-center">
+                    <div class="col-md-8">
+                        <h5 class="mb-0"><i class="bi bi-clock-history"></i> Horário de Funcionamento:</h5>
+                        <p class="mb-0">Segunda a Sábado: 9:30 às 12:00 e 15:00 às 20:00 | Fechado aos domingos</p>
+                        <small class="text-muted">Agendamentos são realizados em intervalos de 30 minutos</small>
+                    </div>
+                    <div class="col-md-4 text-end">
+                        {% if not current_user.is_authenticated %}
+                        <a href="{{ url_for('registro') }}" class="btn btn-lg btn-success">Cadastre-se Agora</a>
+                        {% else %}
+                        <a href="{{ url_for('agendar') }}" class="btn btn-lg btn-success">Agendar Agora</a>
+                        {% endif %}
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %} 

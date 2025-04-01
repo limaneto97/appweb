@@ -1,0 +1,134 @@
+{% extends "base.html" %}
+
+{% block title %}Dashboard - Barbearia Souza{% endblock %}
+
+{% block content %}
+<div class="container py-5">
+    <h1 class="mb-4">Meus Agendamentos</h1>
+    
+    {% with messages = get_flashed_messages(with_categories=true) %}
+        {% if messages %}
+            {% for category, message in messages %}
+                <div class="alert alert-{{ category }}">{{ message }}</div>
+            {% endfor %}
+        {% endif %}
+    {% endwith %}
+    
+    <div class="row mb-4">
+        <div class="col-md-6">
+            <div class="card shadow-sm">
+                <div class="card-body">
+                    <h5 class="card-title"><i class="bi bi-person-circle"></i> Bem-vindo, {{ current_user.nome }}</h5>
+                    <p class="card-text">Abaixo estão listados seus agendamentos.</p>
+                    <a href="{{ url_for('agendar') }}" class="btn btn-primary">
+                        <i class="bi bi-calendar-plus"></i> Novo Agendamento
+                    </a>
+                </div>
+            </div>
+        </div>
+        
+        <div class="col-md-6">
+            <div class="card shadow-sm">
+                <div class="card-body">
+                    <h5 class="card-title"><i class="bi bi-trophy"></i> Programa de Fidelidade</h5>
+                    <p class="card-text">
+                        <strong>Seus pontos:</strong> <span class="badge bg-success">{{ current_user.pontos_fidelidade }} / 10</span>
+                    </p>
+                    <div class="progress mb-3">
+                        <div class="progress-bar bg-success" role="progressbar" 
+                            style="width: {% if current_user.pontos_fidelidade > 0 %}{{ (current_user.pontos_fidelidade / 10) * 100 }}%{% else %}0%{% endif %};" 
+                            aria-valuenow="{{ current_user.pontos_fidelidade }}" aria-valuemin="0" aria-valuemax="10">
+                            {{ current_user.pontos_fidelidade }} / 10
+                        </div>
+                    </div>
+                    <p class="small text-muted">Complete 10 agendamentos para ganhar um corte grátis!</p>
+                </div>
+            </div>
+        </div>
+    </div>
+    
+    <div class="card shadow-sm">
+        <div class="card-header bg-white">
+            <h5 class="mb-0"><i class="bi bi-calendar-check"></i> Meus Agendamentos</h5>
+        </div>
+        <div class="card-body">
+            {% if agendamentos %}
+                <div class="table-responsive">
+                    <table class="table table-hover">
+                        <thead>
+                            <tr>
+                                <th>Data/Hora</th>
+                                <th>Serviço</th>
+                                <th>Barbeiro</th>
+                                <th>Valor</th>
+                                <th>Status</th>
+                                <th>Ações</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for agendamento in agendamentos %}
+                                <tr class="
+                                    {% if agendamento.status == 'cancelado' %}table-danger{% endif %}
+                                    {% if agendamento.status == 'confirmado' %}table-success{% endif %}
+                                    {% if agendamento.status == 'finalizado' %}table-info{% endif %}
+                                ">
+                                    <td>{{ agendamento.data_hora.strftime('%d/%m/%Y às %H:%M') }}</td>
+                                    <td>
+                                        <p class="mb-0"><strong>{{ agendamento.servico_principal.nome }}</strong></p>
+                                        {% if agendamento.servicos_adicionais %}
+                                            <small class="text-muted">
+                                                + {{ agendamento.servicos_adicionais|map(attribute='nome')|join(', ') }}
+                                            </small>
+                                        {% endif %}
+                                    </td>
+                                    <td>{{ agendamento.barbeiro.nome }}</td>
+                                    <td>
+                                        <p class="mb-0"><strong>R$ {{ agendamento.valor_total }}</strong></p>
+                                        {% if agendamento.valor_sem_agendamento %}
+                                            <small class="text-success">
+                                                <i class="bi bi-piggy-bank"></i> Economia de R$ {{ (agendamento.valor_sem_agendamento - agendamento.valor_total)|round(2) }}
+                                            </small>
+                                            <br>
+                                            <small class="text-muted">
+                                                <s>R$ {{ agendamento.valor_sem_agendamento }}</s> (sem agendamento)
+                                            </small>
+                                        {% endif %}
+                                    </td>
+                                    <td>
+                                        {% if agendamento.status == 'pendente' %}
+                                            <span class="badge bg-warning text-dark">Pendente</span>
+                                        {% elif agendamento.status == 'confirmado' %}
+                                            <span class="badge bg-success">Confirmado</span>
+                                        {% elif agendamento.status == 'cancelado' %}
+                                            <span class="badge bg-danger">Cancelado</span>
+                                        {% elif agendamento.status == 'finalizado' %}
+                                            <span class="badge bg-info">Finalizado</span>
+                                        {% endif %}
+                                    </td>
+                                    <td>
+                                        {% if agendamento.status == 'pendente' or agendamento.status == 'confirmado' %}
+                                            {% if agendamento.data_hora > now %}
+                                                <form action="{{ url_for('cancelar_agendamento', id=agendamento.id) }}" method="POST" class="d-inline-block" onsubmit="return confirm('Tem certeza que deseja cancelar este agendamento?')">
+                                                    <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
+                                                    <button type="submit" class="btn btn-danger btn-sm">
+                                                        <i class="bi bi-x-circle"></i> Cancelar
+                                                    </button>
+                                                </form>
+                                            {% endif %}
+                                        {% endif %}
+                                    </td>
+                                </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+            {% else %}
+                <div class="alert alert-info">
+                    <i class="bi bi-info-circle"></i> Você ainda não possui agendamentos.
+                    <a href="{{ url_for('agendar') }}" class="alert-link">Clique aqui</a> para agendar um horário.
+                </div>
+            {% endif %}
+        </div>
+    </div>
+</div>
+{% endblock %} 

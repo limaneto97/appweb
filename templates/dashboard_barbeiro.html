@@ -1,0 +1,256 @@
+{% extends "base.html" %}
+
+{% block title %}Dashboard Barbeiro - Barbearia Souza{% endblock %}
+
+{% block content %}
+<div class="row mb-4">
+    <div class="col">
+        <h2>Painel do Barbeiro</h2>
+        <p class="text-muted">Gerencie seus agendamentos aqui</p>
+    </div>
+    <div class="col text-end">        
+        <a href="{{ url_for('central_agendamentos') }}" class="btn btn-outline-info me-2">
+            <i class="bi bi-display"></i> Central de Agendamentos
+        </a>
+        
+        <a href="{{ url_for('agendar') }}" class="btn btn-primary">
+            <i class="bi bi-plus-circle"></i> Novo Agendamento
+        </a>
+    </div>
+</div>
+
+<!-- Seção de busca de clientes -->
+<div class="row mb-4">
+    <div class="col-md-12">
+        <div class="card shadow-sm">
+            <div class="card-header bg-primary text-white">
+                <h5 class="mb-0">Buscar Clientes</h5>
+            </div>
+            <div class="card-body">
+                <div class="input-group mb-3">
+                    <input type="text" id="busca_cliente" class="form-control" placeholder="Digite nome, telefone ou email do cliente" aria-label="Buscar cliente" minlength="3">
+                    <button class="btn btn-outline-primary" type="button" id="btn_buscar_cliente">Buscar</button>
+                </div>
+                <div id="resultados_busca" class="mt-3" style="display: none;">
+                    <div class="table-responsive">
+                        <table class="table table-hover">
+                            <thead>
+                                <tr>
+                                    <th>Nome</th>
+                                    <th>Telefone</th>
+                                    <th>Email</th>
+                                    <th>Ações</th>
+                                </tr>
+                            </thead>
+                            <tbody id="tabela_resultados">
+                                <!-- Resultados serão exibidos aqui -->
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<div class="row">
+    <div class="col">
+        {% if agendamentos %}
+            <div class="table-responsive">
+                <table class="table table-hover">
+                    <thead>
+                        <tr>
+                            <th>Data/Hora</th>
+                            <th>Serviço</th>
+                            <th>Cliente</th>
+                            <th>Telefone</th>
+                            <th>Status</th>
+                            <th>Valor Total</th>
+                            <th>Valor Sem Agendamento</th>
+                            <th>Ações</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for agendamento in agendamentos %}
+                            <tr>
+                                <td>{{ agendamento.data_hora.strftime('%d/%m/%Y às %H:%M') }}</td>
+                                <td>{{ agendamento.cliente.nome }}</td>
+                                <td>{{ agendamento.cliente.telefone }}</td>
+                                <td>
+                                    <p class="mb-0"><strong>{{ agendamento.servico_principal.nome }}</strong></p>
+                                    {% if agendamento.servicos_adicionais %}
+                                        <small class="text-muted">
+                                            + {{ agendamento.servicos_adicionais|map(attribute='nome')|join(', ') }}
+                                        </small>
+                                    {% endif %}
+                                </td>
+                                <td>
+                                    <p class="mb-0"><strong>R$ {{ agendamento.valor_total }}</strong></p>
+                                    {% if agendamento.valor_sem_agendamento %}
+                                        <small class="text-success">
+                                            <i class="bi bi-piggy-bank"></i> Cliente economizou R$ {{ (agendamento.valor_sem_agendamento - agendamento.valor_total)|round(2) }}
+                                        </small>
+                                    {% endif %}
+                                </td>
+                                <td>
+                                    <span class="badge {% if agendamento.status == 'confirmado' %}bg-success{% elif agendamento.status == 'pendente' %}bg-warning{% else %}bg-danger{% endif %}">
+                                        {{ agendamento.status }}
+                                    </span>
+                                </td>
+                                <td>
+                                    {% if agendamento.status == 'pendente' %}
+                                        <form action="{{ url_for('confirmar_agendamento', id=agendamento.id) }}" method="POST" style="display: inline;">
+                                            <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
+                                            <button type="submit" class="btn btn-sm btn-outline-success me-1 btn-confirmar" data-id="{{ agendamento.id }}">
+                                                <i class="bi bi-check-circle"></i> Confirmar
+                                            </button>
+                                        </form>
+                                    {% endif %}
+                                    {% if agendamento.status != 'cancelado' %}
+                                        <form action="{{ url_for('cancelar_agendamento', id=agendamento.id) }}" method="POST" style="display: inline;">
+                                            <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
+                                            <button type="submit" class="btn btn-sm btn-outline-danger me-1 btn-cancelar" data-id="{{ agendamento.id }}" onclick="return confirm('Tem certeza que deseja cancelar este agendamento?')">
+                                                <i class="bi bi-x-circle"></i> Cancelar
+                                            </button>
+                                        </form>
+                                    {% endif %}
+                                    
+                                    <!-- Botão para enviar lembrete (Opcional) -->
+                                    {% if agendamento.status == 'confirmado' and agendamento.data_hora > now %}
+                                        <button type="button" class="btn btn-sm btn-outline-primary enviar-lembrete" 
+                                                data-id="{{ agendamento.id }}"
+                                                data-cliente="{{ agendamento.cliente.nome }}"
+                                                data-telefone="{{ agendamento.cliente.telefone }}"
+                                                data-data="{{ agendamento.data_hora.strftime('%d/%m/%Y %H:%M') }}">
+                                            <i class="bi bi-bell"></i> Lembrete
+                                        </button>
+                                    {% endif %}
+
+                                    {% if agendamento.status == 'confirmado' and not agendamento.finalizado %}
+                                    <form action="{{ url_for('finalizar_agendamento', id=agendamento.id) }}" method="POST" class="d-inline-block" onsubmit="return confirm('Finalizar este agendamento? Isso adicionará 1 ponto de fidelidade para o cliente.')">
+                                        <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
+                                        <button type="submit" class="btn btn-success btn-sm btn-finalizar" data-id="{{ agendamento.id }}">
+                                            <i class="bi bi-check-circle-fill"></i> Finalizar
+                                        </button>
+                                    </form>
+                                    {% endif %}
+                                </td>
+                            </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+        {% else %}
+            <div class="card">
+                <div class="card-body text-center py-5">
+                    <i class="bi bi-calendar-x display-1 text-muted mb-3"></i>
+                    <h3>Nenhum agendamento encontrado</h3>
+                    <p class="text-muted">Você ainda não possui nenhum agendamento.</p>
+                </div>
+            </div>
+        {% endif %}
+    </div>
+</div>
+
+<!-- Script para busca de clientes -->
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    // Código para busca de clientes
+    const buscaClienteInput = document.getElementById('busca_cliente');
+    const btnBuscarCliente = document.getElementById('btn_buscar_cliente');
+    const resultadosBusca = document.getElementById('resultados_busca');
+    const tabelaResultados = document.getElementById('tabela_resultados');
+
+    if (btnBuscarCliente) {
+        btnBuscarCliente.addEventListener('click', function() {
+            const termo = buscaClienteInput.value.trim();
+            if (termo.length < 3) {
+                alert('Digite pelo menos 3 caracteres para buscar');
+                return;
+            }
+            
+            // Fazer a requisição para a API
+            fetch(`/api/buscar_clientes?termo=${encodeURIComponent(termo)}`)
+                .then(response => response.json())
+                .then(data => {
+                    if (data.error) {
+                        alert('Erro: ' + data.error);
+                        return;
+                    }
+                    
+                    // Limpar resultados anteriores
+                    tabelaResultados.innerHTML = '';
+                    
+                    // Verificar se encontrou clientes
+                    if (data.clientes && data.clientes.length > 0) {
+                        // Adicionar linhas na tabela
+                        data.clientes.forEach(cliente => {
+                            const row = document.createElement('tr');
+                            row.innerHTML = `
+                                <td>${cliente.nome}</td>
+                                <td>${cliente.telefone || 'Não informado'}</td>
+                                <td>${cliente.email}</td>
+                                <td>
+                                    <a href="/agendar?cliente_id=${cliente.id}" class="btn btn-sm btn-primary">
+                                        <i class="bi bi-calendar-plus"></i> Agendar
+                                    </a>
+                                </td>
+                            `;
+                            tabelaResultados.appendChild(row);
+                        });
+                        
+                        // Mostrar os resultados
+                        resultadosBusca.style.display = 'block';
+                    } else {
+                        // Nenhum cliente encontrado
+                        tabelaResultados.innerHTML = `
+                            <tr>
+                                <td colspan="4" class="text-center">
+                                    <i class="bi bi-search"></i> Nenhum cliente encontrado com o termo "${termo}"
+                                </td>
+                            </tr>
+                        `;
+                        resultadosBusca.style.display = 'block';
+                    }
+                })
+                .catch(error => {
+                    console.error('Erro ao buscar clientes:', error);
+                    alert('Erro ao buscar clientes');
+                });
+        });
+    }
+
+    // Lembrete WhatsApp
+    document.querySelectorAll('.enviar-lembrete').forEach(function(btn) {
+        btn.addEventListener('click', function() {
+            const id = this.dataset.id;
+            const cliente = this.dataset.cliente;
+            const telefone = this.dataset.telefone;
+            const data = this.dataset.data;
+            
+            fetch(`/api/enviar_lembrete_whatsapp/${id}`, {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'X-CSRFToken': csrf_token
+                }
+            })
+            .then(response => response.json())
+            .then(data => {
+                if (data.error) {
+                    alert('Erro: ' + data.error);
+                    return;
+                }
+                
+                // Abre o WhatsApp Web em uma nova janela
+                window.open(data.url, '_blank');
+            })
+            .catch(error => {
+                console.error('Erro:', error);
+                alert('Erro ao preparar mensagem de WhatsApp');
+            });
+        });
+    });
+});
+</script>
+{% endblock %} 

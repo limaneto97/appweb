@@ -1,0 +1,439 @@
+{% extends "base.html" %}
+
+{% block title %}Agendar - Barbearia Souza{% endblock %}
+
+{% block content %}
+<div class="row justify-content-center">
+    <div class="col-md-8">
+        <div class="card shadow">
+            <div class="card-body p-5">
+                <h2 class="text-center mb-4">Agendar Horário</h2>
+                
+                {% with messages = get_flashed_messages(with_categories=true) %}
+                    {% if messages %}
+                        {% for category, message in messages %}
+                            <div class="alert alert-{{ category }}">{{ message }}</div>
+                        {% endfor %}
+                    {% endif %}
+                {% endwith %}
+                
+                {% if cliente and current_user.is_barbeiro %}
+                <div class="alert alert-info mb-4">
+<h5>Agendando para Cliente:</h5>
+<p class="mb-0"><strong>Nome:</strong> {{ cliente.nome }}</p>
+<p class="mb-0"><strong>Telefone:</strong> {{ cliente.telefone }}</p>
+<p class="mb-0"><strong>Email:</strong> {{ cliente.email }}</p>
+</div>
+                {% endif %}
+                
+                
+<div class="alert alert-warning mb-4">
+<h5><i class="bi bi-exclamation-triangle-fill"></i> Importante: Compromisso de Agendamento</h5>
+<p>Ao agendar um horário, lembre-se que:</p>
+<ul>
+<li><strong>Pontualidade é essencial:</strong> O barbeiro reservou este horário exclusivamente para você.</li>
+<li><strong>Em caso de ausência:</strong> Outro cliente poderia estar sendo atendido neste horário.</li>
+<li><strong>Economia:</strong> Serviços agendados têm preço especial comparados aos serviços sem agendamento.</li>
+<li><strong>Acréscimo sem agendamento:</strong> Serviços sem agendamento prévio têm acréscimo de 40% no valor.</li>
+</ul>
+</div>
+<div class="alert alert-success mb-4">
+<h5><i class="bi bi-trophy"></i> Programa de Fidelidade</h5>
+<p>Como cliente da Barbearia Souza, você participa automaticamente do nosso programa de fidelidade:</p>
+<ul>
+<li><strong>A cada 10 agendamentos concluídos:</strong> Você ganha um corte de cabelo gratuitamente!</li>
+<li><strong>Progresso:</strong> Acompanhe seus pontos no seu perfil.</li>
+<li><strong>Exclusivo para agendamentos:</strong> Apenas serviços agendados e concluídos contam pontos.</li>
+</ul>
+</div>
+<form id="formAgendamento" method="POST">
+                    {{ form.csrf_token }}
+                    
+                    <div class="mb-3">
+                        {{ form.servico_id.label(class="form-label") }}
+                        {{ form.servico_id(class="form-select") }}
+                        {% if form.servico_id.errors %}
+                            {% for error in form.servico_id.errors %}
+                                <div class="text-danger">{{ error }}</div>
+                            {% endfor %}
+                        {% endif %}
+                        <div class="form-text">Selecione o serviço principal que deseja agendar</div>
+                    </div>
+                    
+                    <div class="mb-3">
+                        {{ form.servicos_adicionais.label(class="form-label") }}
+                        <div class="card">
+                            <div class="card-header bg-light">
+                                <div class="d-flex justify-content-between align-items-center">
+                                    <span><i class="bi bi-plus-circle"></i> Adicione mais serviços (opcional)</span>
+                                    <span class="badge bg-info" id="contador-servicos">0 selecionados</span>
+                                </div>
+                            </div>
+                            <div class="card-body">
+                                {{ form.servicos_adicionais(class="form-select", multiple="multiple", size="5") }}
+                                <div class="form-text mt-2">
+                                    <ul class="small">
+                                        <li>Mantenha a tecla <kbd>Ctrl</kbd> (ou <kbd>⌘ Command</kbd> no Mac) pressionada para selecionar múltiplos serviços</li>
+                                        <li>Selecione vários serviços para realizar em uma única sessão</li>
+                                        <li>A duração total e o valor serão calculados automaticamente</li>
+                                        <li>Para remover um serviço, clique nele novamente com a tecla <kbd>Ctrl</kbd> pressionada</li>
+                                    </ul>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <div id="resumo-servicos" class="alert alert-info mb-3" style="display: none;">
+                        <h6><i class="bi bi-receipt"></i> Resumo dos serviços selecionados:</h6>
+                        <div id="lista-servicos"></div>
+                        <hr>
+                        <div class="row">
+                            <div class="col-md-6">
+                                <p class="mb-0"><i class="bi bi-clock"></i> <strong>Duração total: <span id="duracao-total">0</span> minutos</strong></p>
+                            </div>
+                            <div class="col-md-6">
+                                <p class="mb-0"><i class="bi bi-cash"></i> <strong>Valor total: R$ <span id="valor-total">0.00</span></strong></p>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <div id="alerta-duracao" class="alert alert-warning mb-3" style="display: none;">
+                        <i class="bi bi-exclamation-triangle"></i> <strong>Atenção:</strong> A duração total dos serviços selecionados é de <span id="duracao-alerta">0</span> minutos. 
+                        <p class="mt-2 mb-0">Ao selecionar um horário, certifique-se de que há tempo suficiente para todos os serviços antes do fechamento (18h).</p>
+                    </div>
+                    
+                    <div class="mb-3">
+                        {{ form.barbeiro_id.label(class="form-label") }}
+                        {{ form.barbeiro_id(class="form-select", id="barbeiro_id") }}
+                        {% if form.barbeiro_id.errors %}
+                            {% for error in form.barbeiro_id.errors %}
+                                <div class="text-danger">{{ error }}</div>
+                            {% endfor %}
+                        {% endif %}
+                    </div>
+<div class="mb-3">
+<label class="form-label">Data</label>
+<input class="form-control" id="data_selecionada" min="{{ now.strftime('%Y-%m-%d') }}" type="date"/>
+</div>
+<div class="mb-4">
+    <label for="horario" class="form-label fw-bold">Horário <span class="text-danger">*</span></label>
+    
+    <div class="alert alert-info small mb-3">
+        <i class="bi bi-info-circle-fill me-2"></i>
+        <strong>Informações importantes:</strong>
+        <ul class="mb-0 ps-3 mt-1">
+            <li>Todos os agendamentos são feitos em blocos de 30 minutos</li>
+            <li>O horário de funcionamento é das 8:00 às 19:00, de segunda a sábado</li>
+            <li>Os horários exibidos consideram a duração total dos serviços selecionados</li>
+        </ul>
+    </div>
+    
+    <div id="horarios-container" class="mb-3 d-none">
+        <div class="row">
+            <div class="col-md-6">
+                <div class="card h-100">
+                    <div class="card-header bg-primary text-white">
+                        <i class="bi bi-sunrise"></i> Manhã (8:00 - 12:00)
+                    </div>
+                    <div class="card-body">
+                        <div id="horarios-manha" class="d-flex flex-wrap gap-2">
+                            <!-- Os horários da manhã serão inseridos aqui -->
+                            <div class="placeholder-glow w-100 text-center py-5">
+                                <span class="placeholder col-6"></span>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            <div class="col-md-6">
+                <div class="card h-100">
+                    <div class="card-header bg-primary text-white">
+                        <i class="bi bi-sunset"></i> Tarde (12:00 - 19:00)
+                    </div>
+                    <div class="card-body">
+                        <div id="horarios-tarde" class="d-flex flex-wrap gap-2">
+                            <!-- Os horários da tarde serão inseridos aqui -->
+                            <div class="placeholder-glow w-100 text-center py-5">
+                                <span class="placeholder col-6"></span>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+                    </div>
+
+    <input type="hidden" id="horario-selecionado" name="horario" required>
+    <div id="horario-feedback" class="invalid-feedback">Por favor, selecione um horário.</div>
+</div>
+
+                    {{ form.data_hora(type="hidden") }}
+                        {% if form.data_hora.errors %}
+                            {% for error in form.data_hora.errors %}
+                                <div class="text-danger">{{ error }}</div>
+                            {% endfor %}
+                        {% endif %}
+
+                    <div class="d-grid gap-2">
+                        {{ form.submit(class="btn btn-primary") }}
+                        <a class="btn btn-outline-secondary" href="{{ url_for('dashboard') }}">Cancelar</a>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+</div>
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+        // Elementos do formulário
+        const servicoPrincipalSelect = document.getElementById('servico_id');
+        const servicosAdicionaisSelect = document.getElementById('servicos_adicionais');
+        const barbeiroSelect = document.getElementById('barbeiro_id');
+        const dataInput = document.getElementById('data_selecionada');
+        const horariosContainer = document.getElementById('horarios-container');
+        const resumoContainer = document.getElementById('resumo-servicos');
+        const horaInput = document.getElementById('horario-selecionado');
+        const dataHoraInput = document.getElementById('data_hora');
+        
+        // Variáveis para armazenar informações dos serviços
+        let servicosInfo = {};
+        let servicoSelecionado = null;
+        let servicosAdicionaisSelecionados = [];
+        let duracaoTotal = 0;
+        let valorTotal = 0;
+        let valorSemAgendamento = 0;
+        
+        // Buscar informações dos serviços via API
+        fetch('/api/servicos-info')
+            .then(response => response.json())
+            .then(data => {
+                servicosInfo = data.servicos;
+                
+                // Inicializa os listeners depois de carregar as informações
+                inicializarListeners();
+            })
+            .catch(error => {
+                console.error('Erro ao carregar informações dos serviços:', error);
+            });
+            
+        function inicializarListeners() {
+            // Evento para atualizar o resumo quando o serviço principal é alterado
+            servicoPrincipalSelect.addEventListener('change', atualizarResumo);
+            
+            // Evento para atualizar o resumo quando os serviços adicionais são alterados
+            servicosAdicionaisSelect.addEventListener('change', atualizarResumo);
+            
+            // Eventos para carregar horários disponíveis
+            barbeiroSelect.addEventListener('change', verificarCarregarHorarios);
+            dataInput.addEventListener('change', verificarCarregarHorarios);
+            
+            // Inicializa o resumo com os valores padrão
+            atualizarResumo();
+        }
+        
+        // Função para atualizar o resumo do agendamento
+        function atualizarResumo() {
+            // Obtém o ID do serviço principal selecionado
+            const servicoPrincipalId = servicoPrincipalSelect.value;
+            
+            if (!servicoPrincipalId || !servicosInfo[servicoPrincipalId]) {
+                return; // Serviço não selecionado ou informações não disponíveis
+            }
+            
+            // Atualiza as informações do serviço principal
+            servicoSelecionado = servicosInfo[servicoPrincipalId];
+            duracaoTotal = servicoSelecionado.duracao;
+            valorTotal = servicoSelecionado.preco;
+            valorSemAgendamento = servicoSelecionado.preco_sem_agendamento || servicoSelecionado.preco * 1.4;
+            
+            // Limpa a lista de serviços adicionais
+            servicosAdicionaisSelecionados = [];
+            
+            // Processa serviços adicionais selecionados
+            Array.from(servicosAdicionaisSelect.selectedOptions).forEach(option => {
+                const servicoId = option.value;
+                if (servicosInfo[servicoId] && servicoId != servicoPrincipalId) {
+                    servicosAdicionaisSelecionados.push(servicosInfo[servicoId]);
+                    duracaoTotal += servicosInfo[servicoId].duracao;
+                    valorTotal += servicosInfo[servicoId].preco;
+                    valorSemAgendamento += servicosInfo[servicoId].preco_sem_agendamento || servicosInfo[servicoId].preco * 1.4;
+                }
+            });
+            
+            // Atualiza o contador de serviços adicionais
+            const contadorServicos = document.getElementById('contador-servicos');
+            contadorServicos.textContent = servicosAdicionaisSelecionados.length + ' selecionados';
+            
+            // Atualiza os elementos de exibição do resumo
+            const listaServicosEl = document.getElementById('lista-servicos');
+            const duracaoTotalEl = document.getElementById('duracao-total');
+            const valorTotalEl = document.getElementById('valor-total');
+            
+            // Cria o HTML para a lista de serviços
+            let listaHTML = `<div class="mb-2"><strong>${servicoSelecionado.nome}</strong> - R$ ${servicoSelecionado.preco.toFixed(2)} (${servicoSelecionado.duracao} min)</div>`;
+            
+            if (servicosAdicionaisSelecionados.length > 0) {
+                listaHTML += '<div class="ms-3">';
+                servicosAdicionaisSelecionados.forEach(servico => {
+                    listaHTML += `<div>+ ${servico.nome} - R$ ${servico.preco.toFixed(2)} (${servico.duracao} min)</div>`;
+                });
+                listaHTML += '</div>';
+            }
+            
+            // Atualiza o conteúdo dos elementos
+            listaServicosEl.innerHTML = listaHTML;
+            duracaoTotalEl.textContent = duracaoTotal;
+            valorTotalEl.textContent = valorTotal.toFixed(2);
+            
+            // Exibe o resumo
+            resumoContainer.style.display = 'block';
+            
+            // Verifica se deve exibir alerta de duração
+            const alertaDuracao = document.getElementById('alerta-duracao');
+            const duracaoAlerta = document.getElementById('duracao-alerta');
+            
+            if (duracaoTotal > 60) {
+                duracaoAlerta.textContent = duracaoTotal;
+                alertaDuracao.style.display = 'block';
+            } else {
+                alertaDuracao.style.display = 'none';
+            }
+            
+            // Se tanto o barbeiro quanto a data estiverem selecionados, recarrega os horários disponíveis
+            verificarCarregarHorarios();
+        }
+        
+        // Verifica se deve carregar os horários disponíveis
+        function verificarCarregarHorarios() {
+            const barbeiroId = barbeiroSelect.value;
+            const data = dataInput.value;
+            
+            if (barbeiroId && data && duracaoTotal > 0) {
+                carregarHorariosDisponiveis(barbeiroId, data, duracaoTotal);
+                // Mostrar o contêiner de horários
+                horariosContainer.classList.remove('d-none');
+            }
+        }
+        
+        // Função para carregar horários disponíveis
+        function carregarHorariosDisponiveis(barbeiroId, data, duracao) {
+            // Mostrar indicador de carregamento
+            const horariosManhaCont = document.getElementById('horarios-manha');
+            const horariosTardeCont = document.getElementById('horarios-tarde');
+            
+            horariosManhaCont.innerHTML = '<div class="placeholder-glow w-100 text-center py-3"><span class="placeholder col-6"></span></div>';
+            horariosTardeCont.innerHTML = '<div class="placeholder-glow w-100 text-center py-3"><span class="placeholder col-6"></span></div>';
+            
+            // Fazendo a requisição para a API
+            fetch(`/api/horarios_disponiveis?barbeiro_id=${barbeiroId}&data=${data}&duracao=${duracao}`)
+                .then(response => {
+                    if (!response.ok) {
+                        throw new Error('Erro ao carregar horários');
+                    }
+                    return response.json();
+                })
+                .then(data => {
+                    if (data.error) {
+                        horariosManhaCont.innerHTML = `<div class="alert alert-danger"><i class="bi bi-exclamation-circle me-2"></i>${data.error}</div>`;
+                        horariosTardeCont.innerHTML = '';
+                        return;
+                    }
+                    
+                    const horariosManha = data.horarios.manha || [];
+                    const horariosTarde = data.horarios.tarde || [];
+                    
+                    // Mostrar horários da manhã
+                    if (horariosManha.length > 0) {
+                        let manhaCont = '';
+                        horariosManha.forEach(horario => {
+                            manhaCont += criarBotaoHorario(horario);
+                        });
+                        horariosManhaCont.innerHTML = manhaCont;
+                    } else {
+                        horariosManhaCont.innerHTML = '<p class="text-muted">Não há horários disponíveis no período da manhã.</p>';
+                    }
+                    
+                    // Mostrar horários da tarde
+                    if (horariosTarde.length > 0) {
+                        let tardeCont = '';
+                        horariosTarde.forEach(horario => {
+                            tardeCont += criarBotaoHorario(horario);
+                        });
+                        horariosTardeCont.innerHTML = tardeCont;
+                    } else {
+                        horariosTardeCont.innerHTML = '<p class="text-muted">Não há horários disponíveis no período da tarde.</p>';
+                    }
+                    
+                    // Adicionar evento aos botões de horário
+                    document.querySelectorAll('.btn-horario').forEach(btn => {
+                        btn.addEventListener('click', function() {
+                            // Remove a seleção de outros botões
+                            document.querySelectorAll('.btn-horario').forEach(b => {
+                                b.classList.remove('active');
+                                b.classList.replace('btn-primary', 'btn-outline-primary');
+                            });
+                            
+                            // Seleciona este botão
+                            this.classList.add('active');
+                            this.classList.replace('btn-outline-primary', 'btn-primary');
+                            
+                            // Atualiza o campo de hora
+                            horaInput.value = this.getAttribute('data-hora');
+                            
+                            // Atualiza o campo data_hora (combinando data e hora)
+                            const dataCompleta = `${dataInput.value}T${horaInput.value}`;
+                            dataHoraInput.value = dataCompleta;
+                        });
+                    });
+                })
+                .catch(error => {
+                    console.error('Erro:', error);
+                    horariosManhaCont.innerHTML = `
+                        <div class="alert alert-danger">
+                            <i class="bi bi-exclamation-circle me-2"></i>
+                            Erro ao carregar horários. Por favor, tente novamente.
+                        </div>
+                    `;
+                    horariosTardeCont.innerHTML = '';
+                });
+        }
+        
+        // Função para criar botão de horário
+        function criarBotaoHorario(horario) {
+            const disponivel = horario.disponivel;
+            let classesBotao = disponivel ? 'btn-outline-primary btn-horario' : 'btn-outline-secondary disabled';
+            let titulo = disponivel ? 'Clique para selecionar este horário' : horario.motivo || 'Horário indisponível';
+            
+            return `
+                <button type="button" class="btn ${classesBotao}" 
+                    data-hora="${horario.hora}" 
+                    title="${titulo}" 
+                    ${!disponivel ? 'disabled' : ''}>
+                    ${horario.hora}
+                </button>
+            `;
+        }
+});
+</script>
+<style>
+.horarios-grid {
+    margin-top: 15px;
+}
+
+.horarios-grid button {
+    min-width: 80px;
+    margin-bottom: 10px;
+    transition: all 0.2s;
+}
+
+.horarios-grid button:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 4px 8px rgba(0,0,0,0.1);
+}
+
+.horarios-grid button.btn-primary {
+    transform: translateY(-2px);
+    box-shadow: 0 4px 8px rgba(0,0,0,0.2);
+}
+</style>
+{% endblock %} 

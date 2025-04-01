@@ -1,0 +1,69 @@
+{% extends "base.html" %}
+
+{% block title %}Login - Barbearia Souza{% endblock %}
+
+{% block content %}
+<div class="row justify-content-center">
+    <div class="col-md-6 col-lg-4">
+        <div class="card shadow">
+            <div class="card-body p-5">
+                <h2 class="text-center mb-4">Login</h2>
+                
+                {% with messages = get_flashed_messages(with_categories=true) %}
+                    {% if messages %}
+                        {% for category, message in messages %}
+                            <div class="alert alert-{{ category }}">{{ message }}</div>
+                        {% endfor %}
+                    {% endif %}
+                {% endwith %}
+                
+                <form method="POST">
+                    {{ form.csrf_token }}
+                    
+                    <div class="mb-3">
+                        {{ form.email.label(class="form-label") }}
+                        {{ form.email(class="form-control") }}
+                        {% if form.email.errors %}
+                            {% for error in form.email.errors %}
+                                <div class="text-danger">{{ error }}</div>
+                            {% endfor %}
+                        {% endif %}
+                    </div>
+
+                    <div class="mb-3">
+                        {{ form.senha.label(class="form-label") }}
+                        {{ form.senha(class="form-control") }}
+                        {% if form.senha.errors %}
+                            {% for error in form.senha.errors %}
+                                <div class="text-danger">{{ error }}</div>
+                            {% endfor %}
+                        {% endif %}
+                    </div>
+
+                    <div class="d-grid">
+                        {{ form.submit(class="btn btn-primary") }}
+                    </div>
+                </form>
+                
+                <div class="alert alert-info mt-4">
+                    <h5 class="text-center"><i class="bi bi-piggy-bank"></i> Vantagens do cadastro:</h5>
+                    <ul>
+                        <li><strong>Economize até 40%</strong> nos preços dos serviços comparado ao atendimento sem agendamento</li>
+                        <li><strong>Programa de fidelidade:</strong> ganhe um corte gratuito a cada 10 agendamentos concluídos</li>
+                        <li><strong>Acompanhe</strong> seu histórico de agendamentos</li>
+                        <li><strong>Prioridade</strong> na escolha de horários</li>
+                    </ul>
+                    <div class="text-center mt-2">
+                        <span class="badge bg-warning text-dark">Preço sem agendamento: +40%</span>
+                        <span class="badge bg-success">Preço com agendamento: -40%</span>
+                    </div>
+                </div>
+                
+                <div class="text-center mt-3">
+                    <p>Não tem uma conta? <a href="{{ url_for('registro') }}" class="btn btn-sm btn-outline-primary">Cadastre-se agora</a></p>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %} 
